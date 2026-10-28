@@ -48,13 +48,22 @@ function Auth() {
   const [msg, setMsg] = useState("");
 
   const submit = async (e) => {
-    e.preventDefault(); setMsg("");
-    const fn = mode === "login" ? supabase.auth.signInWithPassword : supabase.auth.signUp;
-    const { error, data } = await fn.call(supabase.auth, { email, password });
-    if (error) setMsg(error.message);
-    else if (mode === "signup" && !data.session) setMsg("Account created. Check your email to confirm, then log in.");
+    e.preventDefault(); setErr("");
+    const days = (new Date(f.end_date) - new Date(f.start_date)) / 86400000 + 1;
+    if (days < 1) return setErr("End date must be on or after the start date.");
+    if (days > 14) return setErr("Trips can be at most 14 days long.");
+    setBusy(true);
+    let trip;
+    try {
+      trip = await api("/api/trips", "POST", { ...f, budget: +f.budget, group_size: +f.group_size });
+      await api(`/api/trips/${trip.id}/generate`, "POST");
+      done(trip.id);
+    } catch (e) {
+      if (trip) await api(`/api/trips/${trip.id}`, "DELETE").catch(() => {});
+      setErr(e.message);
+      setBusy(false);
+    }
   };
-
   return (
     <div className="auth">
       <div className="auth-hero">
